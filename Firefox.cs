@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using KeePass.DataExchange;
 using KeePassLib.Utility;
+using Microsoft.Win32;
 
 namespace KeePassBrowserImporter
 {
@@ -121,6 +122,34 @@ namespace KeePassBrowserImporter
 
 		public override bool UsesMasterPassword { get { return true; } }
 
+		private static string GetFirefoxInstallationPath()
+		{
+			string firefoxPath = string.Empty;
+			try
+			{
+				// Open the App Paths key in the HKEY_LOCAL_MACHINE hive
+				using (RegistryKey appPathsKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe"))
+				{
+					if (appPathsKey != null)
+					{
+						// The default value of this key contains the full path to firefox.exe
+						firefoxPath = appPathsKey.GetValue(null)?.ToString();
+
+						// Extract the directory path from the full executable path
+						if (!string.IsNullOrEmpty(firefoxPath))
+						{
+							firefoxPath = System.IO.Path.GetDirectoryName(firefoxPath);
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error retrieving Firefox path: {ex.Message}");
+			}
+			return firefoxPath;
+		}
+
 		/// <summary>
 		/// Import the credentials with the Network Security Services methods.
 		/// </summary>
@@ -137,8 +166,7 @@ namespace KeePassBrowserImporter
 				throw new ProfileNotFoundException(currentProfilePath);
 			}
 
-			var pluginPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-			var nativeLibraryPath = Path.Combine(pluginPath, Environment.Is64BitProcess ? "x64" : "x86");
+			var nativeLibraryPath = GetFirefoxInstallationPath();
 
 			SetDllDirectory(nativeLibraryPath);
 
@@ -350,7 +378,7 @@ namespace KeePassBrowserImporter
 					}
 					catch
 					{
-						
+
 					}
 				}
 			}
